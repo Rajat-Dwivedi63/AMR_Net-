@@ -1,10 +1,10 @@
 # TL-MALDI-AMR
 
-Deep learning pipeline for antimicrobial resistance (AMR) prediction from MALDI-TOF mass spectrometry data, with ARO/CARD ontology-based interpretability in place of statistical feature-importance methods.
+Deep learning pipeline for antimicrobial resistance (AMR) prediction from MALDI-TOF mass spectrometry data, with ARO/CARD ontology-based interpretability and a genome-level co-occurrence check of the resulting hypotheses.
 
 ## Overview
 
-Antimicrobial resistance is a growing global health threat, and rapid resistance profiling can meaningfully improve treatment decisions. MALDI-TOF mass spectrometry is already used routinely for bacterial species identification — this project investigates whether the same spectra can also predict antibiotic resistance, and whether model predictions can be explained through a curated biological ontology (CARD/ARO) rather than abstract statistical importance scores.
+Antimicrobial resistance is a growing global health threat, and rapid resistance profiling can meaningfully improve treatment decisions. MALDI-TOF mass spectrometry is already used routinely for bacterial species identification. This project investigates whether the same spectra can also predict antibiotic resistance, and whether model predictions can be explained through a curated biological ontology (CARD/ARO) rather than abstract statistical importance scores.
 
 This is an active research project developed as part of a research internship at NIT Kurukshetra, under the supervision of Dr. Sarika Jain.
 
@@ -24,17 +24,18 @@ Three clinically relevant species/antibiotic pairs:
 |---|---|---|
 | [DRIAMS-A](https://www.dora.lib4ri.ch/eawag/islandora/object/eawag:19773) | Primary training/evaluation | Fully processed (18,235 unique isolates) |
 | DRIAMS-B | Cross-dataset validation | Fully processed (5,897 isolates, 718 spectra-matched) |
-| [PATRIC / BV-BRC](https://www.bv-brc.org/) | Independent phenotype-rate consistency check | 75,000 phenotype records compared against DRIAMS-A |
-| [CARD](https://card.mcmaster.ca/) | Ontology reference for interpretability | Fully integrated (1,297 relevant protein records) |
+| [CARD](https://card.mcmaster.ca/) / ARO | Ontology reference for interpretability | Integrated (1,297 relevant protein records, 34 in measurable range) |
+| CARD Genome Collection | Genomic co-occurrence validation | Analyzed (250,685 sequenced genomes) |
 
-Raw dataset files are not included in this repository due to size and licensing — see [Data Access](#data-access) below.
+Raw dataset files are not included in this repository due to size and licensing. See [Data Access](#data-access).
 
 ## Model Architecture
 
-**AMRNet** — a deep neural network with an input-level attention layer over the 6,000-bin MALDI-TOF spectrum (3 Da bin width, 2,000–20,000 Da range), followed by a 3-layer backbone (1024 → 256 → 64) with batch normalization, ReLU, and dropout. The attention layer serves a dual purpose: improving classification and providing the mechanism used for ontology-based interpretability.
+**AMRNet** is a deep neural network with an input-level attention layer over the 6,000-bin MALDI-TOF spectrum (3 Da bin width, 2,000-20,000 Da range), followed by a 3-layer backbone (1024 → 256 → 64) with batch normalization, ReLU, and dropout. The attention layer serves a dual purpose: improving classification and providing the mechanism used for ontology-based interpretability.
 
 - **Loss:** BCEWithLogitsLoss
 - **Optimizer:** Adam (lr=1e-3, weight decay=1e-5)
+- **Class imbalance:** WeightedRandomSampler
 - **Early stopping:** patience=15 on validation AUROC
 
 ## Results
@@ -51,13 +52,13 @@ Raw dataset files are not included in this repository due to size and licensing 
 
 | Species / Antibiotic | AUROC | Notes |
 |---|---|---|
-| E. coli / Ciprofloxacin | 0.827 | Strong generalization — nearly identical to DRIAMS-A |
+| E. coli / Ciprofloxacin | 0.827 | Strong generalization, nearly identical to DRIAMS-A |
 | S. aureus / Oxacillin | 0.700 | Moderate drop, consistent with known cross-site effects |
-| K. pneumoniae / Ceftriaxone | 0.421 | Inconclusive — only 17 resistant samples in test set |
+| K. pneumoniae / Ceftriaxone | 0.421 | Inconclusive: only 17 resistant samples in the external test set |
 
 ## Ontology-Based Interpretability
 
-In place of SHAP-style statistical feature importance, model attention weights are mapped to CARD/ARO resistance genes via theoretical protein mass matching against the MALDI-TOF measurable range. Only 34 of 1,297 relevant CARD resistance proteins fall within the detectable mass range (2,000–20,000 Da) — a physical limitation of the technique itself, not a shortcoming of the method.
+Model attention weights are mapped to CARD/ARO resistance genes via theoretical protein mass matching (±15 Da) against the MALDI-TOF measurable range. Only 34 of 1,297 relevant CARD resistance proteins fall within the detectable mass range (2,000-20,000 Da). This is a physical limit of the technique, not a shortcoming of the method.
 
 | Species / Antibiotic | Samples Checked | Ontology Match | Top Gene |
 |---|---|---|---|
@@ -65,27 +66,56 @@ In place of SHAP-style statistical feature importance, model attention weights a
 | K. pneumoniae / Ceftriaxone | 30 | 0 (0.0%) | none |
 | S. aureus / Oxacillin | 53 | 7 (13.2%) | qacJ (5.7%) |
 
-**Important caveat:** these ontology matches identify biologically plausible candidate genes based on theoretical mass, not confirmed causal relationships. For example, `dfrA9` does not directly cause ciprofloxacin resistance — it confers trimethoprim resistance — but `dfrA`-family genes are documented as common passengers on multidrug-resistance plasmids in *E. coli*, so this may reflect a genuine indirect co-resistance marker. This requires genomic confirmation to verify directly and should currently be read as a research hypothesis, not a validated finding.
+## Genomic Validation
+
+The two candidate genes were checked for co-occurrence with their biologically plausible partner genes across CARD's genome collection (250,685 sequenced genomes).
+
+| Candidate gene | Carriers / Total genomes | Partner rate in carriers | Baseline rate |
+|---|---|---|---|
+| *qacJ* (S. aureus) | 590 / 42,735 | 64.7% carry *mecA* | 24.7% |
+| *dfrA9* (E. coli) | 1 / 45,170 | 1/1 fluoroquinolone class | 86.1% |
+
+- **qacJ:** supported. Carriers are about 2.6 times more likely to also carry *mecA* than a random *S. aureus* genome, consistent with co-localization on shared mobile genetic elements. *mecA* itself (PBP2a, ~76 kDa) is too heavy to detect directly, so *qacJ* is a plausible indirect marker.
+- **dfrA9:** inconclusive. Only one carrier genome exists, and the baseline fluoroquinolone-resistance annotation rate among non-carriers is already 86.1%, leaving little room to detect an effect.
+- **Limitation:** this is population-level evidence, not isolate-specific. DRIAMS contains spectra only, so no genome sequence exists for the exact isolates the model classified.
 
 ## Repository Structure
 
 ```
 TL-MALDI-AMR/
-├── data_processing/        # DRIAMS-A / DRIAMS-B extraction & preprocessing scripts
-├── ontology/                # CARD/ARO parsing and bin-to-gene mapping scripts
-├── models/                  # AMRNet architecture, training, evaluation
-├── interpretability/        # Attention-to-ontology mapping and analysis
-├── results/                 # Saved metrics, trained model weights, output CSVs
-├── notebooks/                # Exploratory / Colab notebooks
+├── data_processing/
+│   ├── 1_driams_a_processing.py
+│   └── 2_driams_b_processing_and_validation.py
+├── ontology/
+│   └── 3_card_aro_ontology_lookup.py
+├── interpretability/
+│   └── colab_ontology_interpretability.py
+├── validation/
+│   └── analyze_co_occurrence.py
+├── paper/
+│   ├── TL-MALDI-AMR.tex
+│   └── TL-MALDI-AMR.pdf
+├── requirements.txt
 └── README.md
 ```
 
+## Setup
+
+```bash
+git clone https://github.com/Rajat-Dwivedi63/TL-MALDI-AMR.git
+cd TL-MALDI-AMR
+pip install -r requirements.txt
+```
+
+The scripts were developed in Google Colab and contain Google Drive paths that you will need to edit to match your own data locations.
 
 ## Data Access
 
-- DRIAMS-A / DRIAMS-B: available from the [DRIAMS repository](https://www.dora.lib4ri.ch/eawag/islandora/object/eawag:19773) (institutional access required)
-- CARD: available from [card.mcmaster.ca](https://card.mcmaster.ca/download) (free for non-commercial/research use — see CARD's own license terms)
-- PATRIC/BV-BRC: available via the [BV-BRC API](https://www.bv-brc.org/)
+- **DRIAMS-A / DRIAMS-B:** available from the [DRIAMS repository](https://www.dora.lib4ri.ch/eawag/islandora/object/eawag:19773) (see the repository for access terms).
+- **CARD (ontology and protein FASTA):** [card.mcmaster.ca/download](https://card.mcmaster.ca/download), main data download.
+- **CARD genome collection:** the separate "Prevalence, Resistomes & Variants" download on the same page (`card-genomes.txt.gz`).
+
+CARD is free for non-commercial research use under its own license terms.
 
 ## Current Status
 
@@ -93,15 +123,16 @@ TL-MALDI-AMR/
 - [x] AMRNet trained and evaluated on DRIAMS-A
 - [x] Cross-dataset validation on DRIAMS-B
 - [x] ARO/CARD ontology interpretability pipeline
-- [x] Independent phenotype-rate check against PATRIC
-- [ ] Genomic confirmation of candidate co-resistance markers
+- [x] Genomic co-occurrence validation (CARD genome collection)
+- [ ] Ablation studies
 - [ ] Class imbalance mitigation for K. pneumoniae
-- [ ] Manuscript preparation
+- [ ] Manuscript preparation and submission
 
 ## Author
 
-**Rajat Dwivedi** — B.Tech Information Technology, Global Institute of Technology, Jaipur
-Research Internship under **Dr. Sarika Jain**, NIT Kurukshetra
+**Rajat Dwivedi**, B.Tech Information Technology, Global Institute of Technology, Jaipur.
+Research internship under **Dr. Sarika Jain**, NIT Kurukshetra.
 
 ## License
-MIT license
+
+*(Add your chosen license here, for example MIT for the code. DRIAMS and CARD each carry their own data-use licenses, which apply regardless of this repository's code license.)*
