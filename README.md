@@ -79,25 +79,6 @@ The two candidate genes were checked for co-occurrence with their biologically p
 - **dfrA9:** inconclusive. Only one carrier genome exists, and the baseline fluoroquinolone-resistance annotation rate among non-carriers is already 86.1%, leaving little room to detect an effect.
 - **Limitation:** this is population-level evidence, not isolate-specific. DRIAMS contains spectra only, so no genome sequence exists for the exact isolates the model classified.
 
-## Repository Structure
-
-```
-TL-MALDI-AMR/
-├── data_processing/
-│   ├── 1_driams_a_processing.py
-│   └── 2_driams_b_processing_and_validation.py
-├── ontology/
-│   └── 3_card_aro_ontology_lookup.py
-├── interpretability/
-│   └── colab_ontology_interpretability.py
-├── validation/
-│   └── analyze_co_occurrence.py
-├── paper/
-│   ├── TL-MALDI-AMR.tex
-│   └── TL-MALDI-AMR.pdf
-├── requirements.txt
-└── README.md
-```
 
 ## Setup
 
@@ -117,16 +98,6 @@ The scripts were developed in Google Colab and contain Google Drive paths that y
 
 CARD is free for non-commercial research use under its own license terms.
 
-## Current Status
-
-- [x] SOTA baseline reproduction (MSDeepAMR, Weis et al.)
-- [x] AMRNet trained and evaluated on DRIAMS-A
-- [x] Cross-dataset validation on DRIAMS-B
-- [x] ARO/CARD ontology interpretability pipeline
-- [x] Genomic co-occurrence validation (CARD genome collection)
-- [ ] Ablation studies
-- [ ] Class imbalance mitigation for K. pneumoniae
-- [ ] Manuscript preparation and submission
 
 ## Author
 
