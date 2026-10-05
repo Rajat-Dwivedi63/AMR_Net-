@@ -1,0 +1,5 @@
+##---Datasets are too big to upload on the git---------##
+--------------------------------------------------------
+##---therefore here are the links for DRIAMS A and B--##
+
+https://www.kaggle.com/datasets/drscarlat/driams/data
