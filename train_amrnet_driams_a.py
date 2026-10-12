@@ -1,8 +1,14 @@
 # =============================================================================
-# Full Pipeline for COLAB 
-#Step 1: Extracting driams.zip to Colab SSD.
-#Steps 2–5: Metadata coalescing, memory-safe float32 spectra extraction, label parsing, and generating .npz files.
-#Steps 6–7: The AMRNet architecture and the single-split training loop.
+# AMRNet: End-to-End Data Processing & Model Training Pipeline
+#
+# Pipeline Overview:
+#   Step 1: Extract DRIAMS-A spectral archive.
+#   Step 2: Metadata parsing and label coalescing.
+#   Step 3: Memory-mapped float32 spectral feature extraction.
+#   Step 4: Phenotypic resistance label parsing.
+#   Step 5: Per-cohort train/val/test dataset partitioning & .npz export.
+#   Step 6: SpectraDataset and AMRNet model architecture definition.
+#   Step 7: Model training loop, early stopping, and held-out evaluation.
 # =============================================================================
 
 import os
@@ -19,7 +25,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
 
-# Optional Colab mount
 try:
     from google.colab import drive
     drive.mount('/content/drive')
@@ -46,7 +51,7 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 
 # =============================================================================
-# 1. Dataset Extraction
+# Step 1: Extract DRIAMS-A Spectral Archive
 # =============================================================================
 if not os.path.exists(os.path.join(WORK_DIR, 'DRIAMS-A')):
     with zipfile.ZipFile(ZIP_PATH, 'r') as zf:
@@ -57,7 +62,7 @@ else:
 
 
 # =============================================================================
-# 2. Metadata Parsing and Coalescing
+# Step 2: Metadata Parsing and Coalescing
 # =============================================================================
 id_path = os.path.join(WORK_DIR, 'DRIAMS-A', 'id')
 id_files = glob.glob(os.path.join(id_path, '**', '*.csv'), recursive=True)
@@ -84,7 +89,7 @@ gc.collect()
 
 
 # =============================================================================
-# 3. Memory-Mapped Spectra Extraction
+# Step 3: Memory-Mapped Spectral Extraction (float32)
 # =============================================================================
 binned_path = os.path.join(WORK_DIR, 'DRIAMS-A', 'binned_6000')
 binned_files = glob.glob(os.path.join(binned_path, '**', '*.txt'), recursive=True)
@@ -97,7 +102,7 @@ N_BINS = 6000
 n_samples = len(matched_codes)
 X_spectra = np.empty((n_samples, N_BINS), dtype=np.float32)
 
-# Linear m/z axis: 6,000 bins, 3 Da width, spanning 2000-20000 Da
+# Linear m/z coordinate grid: 6,000 bins, 3 Da bin width (2,000 to 20,000 Da)
 mz_axis = 2000.0 + np.arange(N_BINS, dtype=np.float32) * 3.0
 
 for i, code in enumerate(matched_codes):
@@ -120,7 +125,7 @@ gc.collect()
 
 
 # =============================================================================
-# 4. Phenotypic Label Parsing & Split Generation
+# Step 4: Phenotypic Resistance Label Parsing
 # =============================================================================
 def parse_label(raw_value):
     if pd.isna(raw_value) or raw_value == '-':
@@ -141,6 +146,10 @@ def parse_label(raw_value):
         return 0
     return None
 
+
+# =============================================================================
+# Step 5: Cohort Partitioning, Normalization, & .npz Export
+# =============================================================================
 X_spectra = np.load(os.path.join(SAVE_DIR, 'X_spectra.npy'))
 meta_matched = pd.read_csv(os.path.join(SAVE_DIR, 'meta_matched.csv'), low_memory=False)
 
@@ -203,7 +212,7 @@ gc.collect()
 
 
 # =============================================================================
-# 5. AMRNet Architecture & PyTorch Dataset
+# Step 6: Dataset Loader and AMRNet Architecture
 # =============================================================================
 class SpectraDataset(Dataset):
     def __init__(self, X, y):
@@ -231,7 +240,7 @@ class AMRNet(nn.Module):
 
 
 # =============================================================================
-# 6. Training & Evaluation Pipeline
+# Step 7: Training Loop, Early Stopping, and Model Evaluation
 # =============================================================================
 def train_model(X_train, y_train, X_val, y_val, epochs=50, batch_size=32, lr=1e-3):
     train_loader = DataLoader(SpectraDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
