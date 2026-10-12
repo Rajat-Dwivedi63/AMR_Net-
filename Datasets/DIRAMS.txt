@@ -1,5 +1,14 @@
-##---Datasets are too big to upload on the git---------##
---------------------------------------------------------
-##---therefore here are the links for DRIAMS A and B--##
+## Datasets
 
-https://www.kaggle.com/datasets/drscarlat/driams/data
+Due to GitHub's file size limits (>100 MB), raw spectra and genomic databases are not hosted directly in this repository. All datasets are publicly available from the repositories below:
+
+| Dataset | Role | Size / Scope | Access / Download Links | Status |
+|---|---|---|:---:|---|
+| **DRIAMS-A & B (Kaggle Mirror)** | Primary training, test, and cross-site cohorts | ~15 GB compressed | [Kaggle Dataset: drscarlat/driams](https://www.kaggle.com/datasets/drscarlat/driams/data) | Fast download mirror |
+| **DRIAMS (Official Academic Archive)** | Primary benchmark source | DRIAMS-A: 18,235 isolates<br>DRIAMS-B: 5,897 isolates | [Dryad Digital Repository](https://doi.org/10.5061/dryad.bzkh1899q) / [Lib4RI Portal](https://www.dora.lib4ri.ch/eawag/islandora/object/eawag:19773) | Primary citation source |
+| **CARD / ARO Index** | Antibiotic Resistance Ontology reference | 1,297 species-matched protein sequences | [CARD Download Portal](https://card.mcmaster.ca/download) | Reference table (`card_aro_lookup.csv`) |
+| **CARD Genomes** | Population co-occurrence validation | 250,685 whole-genome annotations | [CARD Resistomes & Variants](https://card.mcmaster.ca/download) (`card-genomes.txt.gz`) | Genomic verification ($n=250{,}685$) |
+
+---
+
+I have uploaded the files to this repository wherever possible, but I prefer to download all of them directly from the website using the provided links.
