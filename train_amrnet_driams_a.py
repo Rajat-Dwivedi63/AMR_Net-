@@ -1,5 +1,5 @@
 # =============================================================================
-# TL-MALDI-AMR — Full Pipeline for COLAB 
+# Full Pipeline for COLAB 
 #Step 1: Extracting driams.zip to Colab SSD.
 #Steps 2–5: Metadata coalescing, memory-safe float32 spectra extraction, label parsing, and generating .npz files.
 #Steps 6–7: The AMRNet architecture and the single-split training loop.
